@@ -6,12 +6,12 @@ const router = Router()
 router.route("/register").post( // as we have to send data to cloudnarry before registering the user so we will use it 
     upload.fields([ // here we get multiple options with upload. but we select fields bcs we can send any type of file by this in an array 
         {
-            name:avatar, // defining the name of that file should be equal in both frontend and backend
-            maxCount :1  // define how many files max you can send 
+            name: "avatar", // defining the name of that file should be equal in both frontend and backend
+            maxCount: 1  // define how many files max you can send 
         },
         {
-            name:coverImage,
-            maxCount:2
+            name: "coverImage",
+            maxCount: 2
         }
     ]),
     registerUsers)

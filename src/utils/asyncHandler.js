@@ -1,3 +1,4 @@
+// This is a higher order function - fn which accept fn as parameter 
 const asyncHandler = (requestHandler) => {
     return (req, res, next) => {
         Promise.resolve(requestHandler(req, res, next))

@@ -37,7 +37,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
     // 3) Existance checking : for that we have imported User model as it is the only way to talk to our database 
     // So on that user we run a preDefined method .findOne which returns the first existance of the user
-    const existingUser=User.findOne({
+    const existingUser= await User.findOne({
         $or:[{email},{username}] // here as we want to check from both if either of them exists you cant register , so by using ($) we can basically use or and xor and many other function , all inside an array of objects
     })
 
@@ -46,12 +46,13 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     }
 
     // 4) checking needed file like avatar or coverimage is uploaded by user or not 
-
-    const avatarLocalPath = req.files?.avatar[0]?.path;
+    console.log("req.files:", req.files)
+    
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
      // as we are using multer as our middleware so it will proive us funtion to take files data 
      // it is good practice to check at all stages like is we are getting the file or not 
      // then we  extract the path (local path) of the image which is sotre in an array as its first element , there are other data about the image there also 
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
     
     // making sure is there image given by the user 
     if(!avatarLocalPath) {
@@ -73,7 +74,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
         username:username.toLowerCase(), // we want that all username should be in lowecase in my db
         email,
         password,
-        avatar:avatar.url(), // here we just want avatar url not other metadata about it 
+        avatar:avatar.url, // here we just want avatar url not other metadata about it 
         coverImg:coverImg?.url || "" // see we dont check if there is coverImg as it not required so check it here if present then send url and if not then keep it empty
     })
 
@@ -83,8 +84,8 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     // But we get an advance feature here as we dont want to send password and refreshToken so we can do a 
     // chainig using .select and inside it we will pass the things which we want to remove , 
     // but it will be in form of string and a -(minus) in starting of it 
-    const createUser = User.findById(user._id).select(
-        "-password - refreshToken"
+    const createUser = await User.findById(user._id).select(
+        "-password -refreshToken"
     )
 
     if(!createUser){

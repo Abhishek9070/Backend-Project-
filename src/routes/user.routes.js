@@ -1,6 +1,8 @@
 import {Router} from "express";
-import { registerUsers } from "../controllers/user.controllers.js";
+import { loginUsers , logOutUsers, registerUsers } from "../controllers/user.controllers.js";
 import { upload } from "../midllewares/cloudinary.midlewares.js";
+import { verifyJWT } from "../midllewares/auth.midllewares.js";
+
 const router = Router()
 
 router.route("/register").post( // as we have to send data to cloudnarry before registering the user so we will use it 
@@ -16,4 +18,8 @@ router.route("/register").post( // as we have to send data to cloudnarry before 
     ]),
     registerUsers)
 
+router.route("/login").post(loginUsers)
+
+// secure route 
+router.route("/logOut").post(verifyJWT , logOutUsers)
 export default router

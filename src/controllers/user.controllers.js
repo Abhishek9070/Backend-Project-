@@ -3,6 +3,23 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/users.models.js";
 import { cloudinaryUpload } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
+import { use } from "react";
+
+
+const  creatAccessTokenAndRefereshToken = async (userId) =>{
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refereshToken = user.generateRefreshToken()
+
+        user.refereshToken=refereshToken // entring into our db 
+        await user.save({validateBeforeSave : false})// just update the db without any check
+        
+        return {accessToken,refereshToken}
+    } catch (error) {
+        throw new ApiError(500 , "Something went wrong while generating accessToken and refereshToken")
+    }
+}
 
 const registerUsers = asyncHandler( async ( req , res ) => {
     // get user information from frontend 
@@ -99,5 +116,92 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
 })
 
+const loginUsers = asyncHandler ( async ( req, res ) => {
+    // bring given username , email , password from frontend  (req->body)
+    const {username , email , password}=req.body
+    if( !username || !email ){
+        throw new ApiError(400 ,"Please enter username or email")
+    }
+    //username or email validate 
+    const userDetails = await User.findOne({
+        $or:[{username} , {email}]
+    })
+    //check if user is registered or not 
+    if(!userDetails){
+        throw new ApiError(404,"User not found please register")
+    }
 
-export {registerUsers}
+    //password validate 
+    const isPasswordValid=await userDetails.isPasswordValid(password) // here we have used our own method which we created for the user inside db 
+    // which basically checks for the correctness of password , but the main  point here is we can acces this mehod into the userDetails only not in Users
+    // bcs its directly comes from db on which we have applied the method 
+    if(!isPasswordValid){
+        throw new ApiError(401 , "Invalid user Credentials ")
+    }
+    //create access token & referesh token
+    const {accessToken , refereshToken } = await creatAccessTokenAndRefereshToken(userDetails._id)
+    
+    const logInUser = await User.findById(userDetails._id).
+    select("-password -refreshToken") // here basically we are removing the things which we dont want to send
+    
+    //send both the tokens to user in form of cookie (secure cookie)
+
+    //setting oprions for cookie as if we directly send it then it can be modified from frontend but now it will only be modified from the server 
+    const options={
+        httpOnly : true ,
+        secure : true
+    }
+
+    //give response
+    return res
+    .status(200)
+    .cookie("accessToken",accessToken , options)
+    .cookie("refreshToken" , refereshToken , options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                userDetails : logInUser , accessToken , refereshToken
+            },
+            "User loged in successfully"
+        )
+    )
+})
+
+const logOutUsers = asyncHandler( async ( req , res ) => {
+    // as we need to logout user so that at first we need to see who is the user ,
+    // on that basis we will then remove the refresh token , cookies 
+    // but as when we are logging the user then we take reference from the username , email and all other stuf to get them login
+    // but while logginout we cant do this that you give me name/email or anyhting 
+    // Then how ? 
+    // we have to use middleware (our own ) here ,
+    //  whose work is just to check is user is logged in or not and
+    //  if logged in then we will add a method in it by which we can acess the user directly with help of req.users
+
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+           $set:{
+            accessToken : undefined
+           }
+        },{
+            new:true 
+        }
+    )
+    const options={
+        httpOnly : true ,
+        secure : true
+    }
+    
+    return res
+    .status(200)
+    .clearCookie(accessToken , options)
+    .clearCookie(refereshToken , options)
+    .json( new ApiResponse('200' , {} , "User logged out successfully"))
+})
+
+
+export {registerUsers,
+        loginUsers,
+        logOutUsers
+}

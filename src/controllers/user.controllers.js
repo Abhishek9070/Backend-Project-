@@ -200,7 +200,7 @@ const logOutUsers = asyncHandler( async ( req , res ) => {
     .json( new ApiResponse(200 , {} , "User logged out successfully"))
 })
 
-const refreshAccessToken = asyncHandler(async(req , res) =>{
+const refreshAccessToken = asyncHandler(async ( req , res ) =>{
     try {
         const incommingRefreshToken = req.cookie.refereshToken || req.body.refereshToken
     
@@ -245,8 +245,64 @@ const refreshAccessToken = asyncHandler(async(req , res) =>{
 
 })
 
+const changePassword = asyncHandler(async ( req , res ) =>{
+    // So for changing the password we must check is user log in or not and for that we will use our auth middleware which we wrote earlier
+    
+    const {oldPassword , newPassword , cnfrmPassword} = req.body 
+
+    if(!(newPassword === cnfrmPassword)){
+        throw new ApiError(400 ,"newPassword and cnfrmPassword is not same")
+    }
+
+    const user = await User.findById(req.user._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if(!isPasswordCorrect){
+        throw new ApiError(200 , "Incorect password")
+    }
+
+    user.password=newPassword
+    await user.save({
+        validateBeforeSave : false
+    })
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200 , {} ,"Password changed successfully")
+    )
+
+
+})
+
+const updateAccountDetails = asyncHandler( async ( req , res ) => {
+
+    const {fullName , email} = req.body
+
+    if(!fullName || !email){
+        throw new ApiError(200 , "Fill all the given fields to update")
+    }
+
+    const user = User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set : {
+                fullName,
+                email 
+                // fullName : fullName 
+                // email : email
+            }        
+        },
+        {new:true}
+    ).select("-password -refereshToken")
+    
+    res
+    .status(200)
+    .json(new ApiResponse(200 , user , "Account details updated successfully"))
+})
 export {registerUsers,
         loginUsers,
         logOutUsers,
-        refreshAccessToken
+        refreshAccessToken,
+        changePassword
 }

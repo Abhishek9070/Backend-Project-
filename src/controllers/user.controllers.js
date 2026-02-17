@@ -300,9 +300,66 @@ const updateAccountDetails = asyncHandler( async ( req , res ) => {
     .status(200)
     .json(new ApiResponse(200 , user , "Account details updated successfully"))
 })
+
+const updateUserAvatar = asyncHandler ( async ( req , res ) =>{
+    const newAvatarLocalPath = req.file?.path
+    if(!newAvatarLocalPath){
+        throw new ApiError(400 ,"Avatar image is required")
+    }
+
+    const avatar = await  cloudinaryUpload(newAvatarLocalPath)
+
+    if(!avatar.url){
+        throw new ApiError(401 , "Error while uploading avatar")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set :{
+                avatar : avatar.url
+            }
+        },
+        {new:true}
+    ).select("-password")
+
+     return res
+    .status(200)
+    .json(new ApiResponse(200 , user , "Avatar updated sucessfully"))
+})
+
+const updateUserCoverImg = asyncHandler ( async ( req , res ) =>{
+    const newCoverImgLocalPath = req.file?.path
+    if(!newCoverImgLocalPath){
+        throw new ApiError(400 ,"Cover image is required")
+    }
+
+    const coverImage = await  cloudinaryUpload(newCoverImgLocalPath)
+
+    if(!coverImage.url){
+        throw new ApiError(401 , "Error while uploading coverImage")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set :{
+                coverImage : coverImage.url // we have to just update the string not insert whole obj
+            }
+        },
+        {new:true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200 , user , "Cover Image updated sucessfully"))
+})
+
 export {registerUsers,
         loginUsers,
         logOutUsers,
         refreshAccessToken,
-        changePassword
+        changePassword,
+        updateUserAvatar,
+        updateUserCoverImg
 }

@@ -1,25 +1,55 @@
 import {Router} from "express";
-import { loginUsers , logOutUsers, registerUsers } from "../controllers/user.controllers.js";
+import { 
+    loginUsers, 
+    logOutUsers, 
+    refreshAccessToken, 
+    registerUsers,
+    changePassword,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImg,
+    userProfileDisplay
+} from "../controllers/user.controllers.js";
 import { upload } from "../midllewares/cloudinary.midlewares.js";
 import { verifyJWT } from "../midllewares/auth.midllewares.js";
 
 const router = Router()
 
-router.route("/register").post( // as we have to send data to cloudnarry before registering the user so we will use it 
-    upload.fields([ // here we get multiple options with upload. but we select fields bcs we can send any type of file by this in an array 
+// public routes
+router.route("/register").post( 
+    upload.fields([ 
         {
-            name: "avatar", // defining the name of that file should be equal in both frontend and backend
-            maxCount: 1  // define how many files max you can send 
+            name: "avatar",
+            maxCount: 1
         },
         {
             name: "coverImage",
-            maxCount: 2
+            maxCount: 1
         }
     ]),
-    registerUsers)
+    registerUsers
+)
 
 router.route("/login").post(loginUsers)
+router.route("/refresh-token").post(refreshAccessToken) // no verifyJWT - token is expired when refreshing
 
-// secure route 
-router.route("/logOut").post(verifyJWT , logOutUsers)
+// secured routes (require authentication)
+router.route("/logout").post(verifyJWT, logOutUsers)
+router.route("/change-password").post(verifyJWT, changePassword)
+router.route("/update-account").patch(verifyJWT, updateAccountDetails)
+
+router.route("/avatar").patch(
+    verifyJWT,
+    upload.single("avatar"),
+    updateUserAvatar
+)
+
+router.route("/cover-image").patch(
+    verifyJWT,
+    upload.single("coverImage"),
+    updateUserCoverImg
+)
+
+router.route("/c/:username").get(verifyJWT, userProfileDisplay)
+
 export default router

@@ -30,4 +30,21 @@ import fs from "fs"
         }
     }
 
-export {cloudinaryUpload}
+    const cloudinaryDelete = async (imageUrl) => {
+        try {
+            if (!imageUrl) return null
+            // Extract public_id from URL: https://res.cloudinary.com/cloud/image/upload/v123/public_id.ext
+            const urlParts = imageUrl.split('/')
+            const fileWithExt = urlParts[urlParts.length - 1] // e.g., "public_id.jpg"
+            const publicId = fileWithExt.split('.')[0] // remove extension
+            
+            const result = await cloudinary.uploader.destroy(publicId)
+            console.log("Cloudinary delete result:", result)
+            return result
+        } catch (error) {
+            console.log("Cloudinary delete error:", error.message)
+            return null
+        }
+    }
+
+export {cloudinaryUpload, cloudinaryDelete}

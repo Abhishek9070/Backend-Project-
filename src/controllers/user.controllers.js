@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/users.models.js";
 import { cloudinaryUpload, cloudinaryDelete } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
-import jwt, { decode } from "jsonwebtoken"
+import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
 
 
@@ -47,14 +47,16 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
     // M2 : using array .some() method -> which returns true and false , we will insert all data in an array and run check for each data all together 
     // In real project there is a seperate file for this validation we just import and use as there can be as many validation checks 
-    if( [!username || !fullName || !email || !password].some(
-        (fields)=> fields?.trim()==="") // if this is empty then it will return true
+    
+    if( [username, fullName, email, password].some(
+        (field)=> !field || field?.trim()==="") // if this is empty then it will return true
     ){
         throw new ApiError(400 , "All fields requires") // throwing error using apierror 
     }
 
     // 3) Existance checking : for that we have imported User model as it is the only way to talk to our database 
     // So on that user we run a preDefined method .findOne which returns the first existance of the user
+    
     const existingUser= await User.findOne({
         $or:[{email},{username}] // here as we want to check from both if either of them exists you cant register , so by using ($) we can basically use or and xor and many other function , all inside an array of objects
     })
@@ -93,7 +95,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
         email,
         password,
         avatar:avatar.url, // here we just want avatar url not other metadata about it 
-        coverImg:coverImg?.url || "" // see we dont check if there is coverImg as it not required so check it here if present then send url and if not then keep it empty
+        coverImage:coverImg?.url || "" // see we dont check if there is coverImg as it not required so check it here if present then send url and if not then keep it empty
     })
 
     // 7 - 8) Check for user creation & removing password and refereshToken
@@ -259,11 +261,11 @@ const changePassword = asyncHandler(async ( req , res ) =>{
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if(!isPasswordCorrect){
-        throw new ApiError(200 , "Incorect password")
+        throw new ApiError(400 , "Incorect password")
     }
 
     if(oldPassword===newPassword){
-        throw new ApiError(200 , "Old password and New password can not be same")
+        throw new ApiError(400 , "Old password and New password can not be same")
     }
     user.password=newPassword
     await user.save({
@@ -284,7 +286,7 @@ const updateAccountDetails = asyncHandler( async ( req , res ) => {
     const {fullName , email} = req.body
 
     if(!fullName || !email){
-        throw new ApiError(200 , "Fill all the given fields to update")
+        throw new ApiError(400 , "Fill all the given fields to update")
     }
 
     const user = await User.findByIdAndUpdate(
@@ -450,7 +452,7 @@ const userProfileDisplay = asyncHandler ( async ( req , res ) =>{
 })
 
 const userWatchHistory = asyncHandler ( async ( req , res ) =>{
-    const user = User.aggregate([
+    const user = await User.aggregate([
         {
             $match:{
                 _id: new mongoose.Types.ObjectId(req.user._id)
@@ -458,9 +460,9 @@ const userWatchHistory = asyncHandler ( async ( req , res ) =>{
         },{
             $lookup:{
                 from:"videos",
-                localField:" watchHistory",
+                localField:"watchHistory",
                 foreignField:"_id",
-                as:" watchHistory",
+                as:"watchHistory",
                 pipeline:[
                     {
                         $lookup:{
@@ -495,7 +497,7 @@ const userWatchHistory = asyncHandler ( async ( req , res ) =>{
     .status(200)
     .json(new ApiResponse(
         200 ,
-        user[0].watcHistory ,
+        user[0].watchHistory ,
         "Watch history fetched successfully"))
 })
 export {registerUsers,

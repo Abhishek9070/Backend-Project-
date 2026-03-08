@@ -8,7 +8,8 @@ import {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImg,
-    userProfileDisplay
+    userProfileDisplay,
+    userWatchHistory
 } from "../controllers/user.controllers.js";
 import { upload } from "../midllewares/cloudinary.midlewares.js";
 import { verifyJWT } from "../midllewares/auth.midllewares.js";
@@ -51,5 +52,6 @@ router.route("/cover-image").patch(
 )
 
 router.route("/c/:username").get(verifyJWT, userProfileDisplay)
+router.route("/watch-history").get(verifyJWT, userWatchHistory)
 
 export default router

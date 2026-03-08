@@ -5,26 +5,24 @@ const videoSchema= new Schema(
     {
         videoFile:{
             type:String,
-            require:true
+            required:true
         },
         thumbnail:{
             type:String,
-            require:true
+            required:true
         },
         title:{
             type:String,
-            require:true
+            required:true
         },
         description:{
             type:String
         },
         duration:{
             type:Number,
-            require:true
         },
         views:{
             type:Number,
-            require:true,
             default:0
         },
         isPublished:{

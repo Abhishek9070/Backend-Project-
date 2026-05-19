@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { upload } from "../midllewares/cloudinary.midlewares.js";
-import { verifyJWT } from "../midllewares/auth.midllewares.js";
+import { optionalVerifyJWT, verifyJWT } from "../midllewares/auth.midllewares.js";
 import {
     getAllVideos,
     uploadVideo,
@@ -18,18 +18,18 @@ router.route("/upload-video").post(
     verifyJWT,
     upload.fields([
         {
-            name:"videoFile",
-            maxCount : 1
+            name: "videoFile",
+            maxCount: 1,
         },
-         {
-            name:"thumbnail",
-            maxCount : 1
+        {
+            name: "thumbnail",
+            maxCount: 1,
         }
     ]),
     uploadVideo
 )
 
-router.route("/watch/:videoId").get(getVideoByID)
+router.route("/watch/:videoId").get(optionalVerifyJWT, getVideoByID)
 router.patch(
    "/edit/:videoId",
    verifyJWT,

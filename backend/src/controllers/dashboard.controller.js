@@ -17,7 +17,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
 	const videoIds = videos.map((video) => video._id)
 
 	const totalLikes = videoIds.length
-		? await Like.countDocuments({ video: { $in: videoIds } })
+		? await Like.countDocuments({ video: { $in: videoIds }, isDislike: { $ne: true } })
 		: 0
 
 	return res.status(200).json(

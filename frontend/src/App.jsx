@@ -6,6 +6,7 @@ import WatchSpotlight from "./components/feed/WatchSpotlight"
 import Sidebar from "./components/layout/Sidebar"
 import Topbar from "./components/layout/Topbar"
 import AuthModal from "./components/modals/AuthModal"
+import EditVideoModal from "./components/modals/EditVideoModal"
 import UploadModal from "./components/modals/UploadModal"
 import { categoryChips, sidebarLibrary, sidebarPrimary } from "./features/home/constants"
 import { useHomeController } from "./features/home/useHomeController"
@@ -15,12 +16,20 @@ function App() {
     activeChip,
     activeSection,
     busyAuth,
+    busyComment,
+    busyDelete,
+    busyEdit,
+    busySubscription,
+    busyReaction,
     busyUpload,
+    canGoWatchBack,
+    canGoWatchForward,
     channelHandle,
     channelInitials,
     channelName,
     channelProfile,
     closeAuthModal,
+    closeEditModal,
     closeUploadModal,
     dashboardStats,
     formatViews,
@@ -29,14 +38,24 @@ function App() {
     loadingFeed,
     loadVideoById,
     loginForm,
+    commentDraft,
     mode,
     onCategorySelect,
+    onCommentSubmit,
+    onDeleteVideo,
+    onEditSubmit,
+    onEditVideo,
     onLoginSubmit,
     onLogout,
     onNavSelect,
     onOwnerClick,
     onRegisterSubmit,
     onSearchSubmit,
+    onToggleSubscription,
+    onToggleVideoDislike,
+    onToggleVideoLike,
+    onWatchBack,
+    onWatchForward,
     onUploadSubmit,
     openAuthModal,
     openUploadModal,
@@ -45,18 +64,29 @@ function App() {
     search,
     sectionTitle,
     selectedVideo,
+    editVideoForm,
+    setCommentDraft,
+    setEditVideoForm,
     setLoginForm,
     setRegisterForm,
     setSearch,
     setUploadForm,
     showAuthModal,
+    showEditModal,
     showUploadModal,
     status,
     subscribedChannels,
     toggleAuthMode,
+    user,
+    videoComments,
     uploadForm,
     videos
   } = useHomeController()
+
+  const selectedOwnerId = selectedVideo?.owner?._id || selectedVideo?.owner
+  const isSubscribedToOwner = Boolean(
+    selectedOwnerId && subscribedChannels.some((item) => item?.channel?._id === selectedOwnerId)
+  )
 
   return (
     <div className="yt-shell">
@@ -97,7 +127,30 @@ function App() {
             subscribedChannels={subscribedChannels}
           />
 
-          <WatchSpotlight formatViews={formatViews} selectedVideo={selectedVideo} />
+          <WatchSpotlight
+            busyComment={busyComment}
+            busyDelete={busyDelete}
+            busyReaction={busyReaction}
+            busySubscription={busySubscription}
+            canGoWatchBack={canGoWatchBack}
+            canGoWatchForward={canGoWatchForward}
+            commentDraft={commentDraft}
+            comments={videoComments}
+            currentUserId={user?._id}
+            formatViews={formatViews}
+            isAuthed={isAuthed}
+            isSubscribedToOwner={isSubscribedToOwner}
+            onCommentSubmit={onCommentSubmit}
+            onDeleteVideo={onDeleteVideo}
+            onEditVideo={onEditVideo}
+            onToggleSubscription={onToggleSubscription}
+            onToggleVideoDislike={onToggleVideoDislike}
+            onToggleVideoLike={onToggleVideoLike}
+            onWatchBack={onWatchBack}
+            onWatchForward={onWatchForward}
+            selectedVideo={selectedVideo}
+            setCommentDraft={setCommentDraft}
+          />
 
           {loadingFeed ? <p className="loading-note">Loading videos...</p> : null}
 
@@ -134,6 +187,17 @@ function App() {
           onUploadSubmit={onUploadSubmit}
           setUploadForm={setUploadForm}
           uploadForm={uploadForm}
+        />
+      ) : null}
+
+      {showEditModal ? (
+        <EditVideoModal
+          busyEdit={busyEdit}
+          isAuthed={isAuthed}
+          onClose={closeEditModal}
+          onEditSubmit={onEditSubmit}
+          setEditVideoForm={setEditVideoForm}
+          editVideoForm={editVideoForm}
         />
       ) : null}
     </div>

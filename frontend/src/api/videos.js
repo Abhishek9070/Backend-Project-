@@ -5,8 +5,10 @@ export const fetchVideos = (query = "") => {
   return apiRequest(`/videos${encodedQuery}`)
 }
 
-export const fetchVideoById = (videoId) =>
-  apiRequest(`/videos/watch/${videoId}`)
+export const fetchVideoById = (videoId, token) =>
+  apiRequest(`/videos/watch/${videoId}`, {
+    token
+  })
 
 export const fetchVideosByOwner = (ownerId, query = "") => {
   const params = new URLSearchParams()
@@ -19,6 +21,20 @@ export const fetchVideosByOwner = (ownerId, query = "") => {
 export const uploadVideo = (formData, token) =>
   apiRequest("/videos/upload-video", {
     method: "POST",
+    body: formData,
+    token,
+    isFormData: true
+  })
+
+export const deleteVideoById = (videoId, token) =>
+  apiRequest(`/videos/delete/${videoId}`, {
+    method: "DELETE",
+    token
+  })
+
+export const updateVideoById = (videoId, formData, token) =>
+  apiRequest(`/videos/edit/${videoId}`, {
+    method: "PATCH",
     body: formData,
     token,
     isFormData: true

@@ -9,7 +9,8 @@ import mongoose from "mongoose";
 const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax"
+    sameSite: "lax",
+    maxAge: Number(process.env.COOKIE_MAX_AGE) || 7 * 24 * 60 * 60 * 1000 // default 7 days
 }
 
 
@@ -41,7 +42,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
 
     // 1) Taking data from frontend 
-    const { username , fullName , email , password } = req.body
+    const { username , fullName , email , password } = req.body || {}
     console.log(`email:${email}`);
     
     // 2) validation userData 
@@ -57,7 +58,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     if( [username, fullName, email, password].some(
         (field)=> !field || field?.trim()==="") // if this is empty then it will return true
     ){
-        throw new ApiError(400 , "All fields requires") // throwing error using apierror 
+        throw new ApiError(400 , "All fields are required") // throwing error using apierror 
     }
 
     // 3) Existance checking : for that we have imported User model as it is the only way to talk to our database 
@@ -85,13 +86,20 @@ const registerUsers = asyncHandler( async ( req , res ) => {
         throw new ApiError(400 , "Avatar file is required");
     }
 
-    // 5) Uploading it to cloudnary 
-    // sending the local path there and storing it in a variable and again checking is it there or not for better error handling 
-    const avatar= await cloudinaryUpload(avatarLocalPath)
+    // 5) Uploading it to cloudnary
+    const avatar = await cloudinaryUpload(avatarLocalPath)
     const coverImg = await cloudinaryUpload(coverImageLocalPath)
 
-    if(!avatar){
+    if(avatar?.error){
+        throw new ApiError(400, `Avatar upload failed: ${avatar.error}`)
+    }
+
+    if(!avatar?.url){
         throw new ApiError(400 , "Avatar file is required");
+    }
+
+    if(coverImg?.error){
+        console.log("Cover image upload failed:", coverImg.error)
     }
 
     // 6) Entering user data in our database 
@@ -100,8 +108,8 @@ const registerUsers = asyncHandler( async ( req , res ) => {
         username:username.toLowerCase(), // we want that all username should be in lowecase in my db
         email,
         password,
-        avatar:avatar.url, // here we just want avatar url not other metadata about it 
-        coverImage:coverImg?.url || "" // see we dont check if there is coverImg as it not required so check it here if present then send url and if not then keep it empty
+        avatar: avatar.url, // here we just want avatar url not other metadata about it 
+        coverImage: coverImg?.url || "" // cover image is optional
     })
 
     // 7 - 8) Check for user creation & removing password and refereshToken
@@ -127,7 +135,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
 const loginUsers = asyncHandler ( async ( req, res ) => {
     // bring given username , email , password from frontend  (req->body)
-    const {username , email , password}=req.body
+    const {username , email , password}=req.body || {}
     if( !(username || email) ){
         throw new ApiError(400 ,"Please enter username or email")
     }
@@ -153,21 +161,16 @@ const loginUsers = asyncHandler ( async ( req, res ) => {
     const logInUser = await User.findById(userDetails._id).
     select("-password -refreshToken") // here basically we are removing the things which we dont want to send
     
-    //send both the tokens to user in form of cookie (secure cookie)
-
-    //setting oprions for cookie as if we directly send it then it can be modified from frontend but now it will only be modified from the server 
-    //give response
+    // send tokens as secure httpOnly cookies only; do not include tokens in JSON response
     return res
     .status(200)
-    .cookie("accessToken",accessToken , cookieOptions)
-    .cookie("refreshToken" , refreshToken , cookieOptions)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
     .json(
         new ApiResponse(
             200,
-            {
-                userDetails : logInUser , accessToken , refreshToken
-            },
-            "User loged in successfully"
+            { userDetails: logInUser },
+            "User logged in successfully"
         )
     )
 })
@@ -201,7 +204,7 @@ const logOutUsers = asyncHandler( async ( req , res ) => {
 
 const refreshAccessToken = asyncHandler(async ( req , res ) =>{
     try {
-        const incommingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+        const incommingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
     
         if(!incommingRefreshToken){
             throw new ApiError(401 , "Unauthorized access ")
@@ -225,13 +228,10 @@ const refreshAccessToken = asyncHandler(async ( req , res ) =>{
         
         return res
         .status(200)
-        .cookie("accessToken" , accessToken , cookieOptions)
-        .cookie("refreshToken", newRefreshToken , cookieOptions)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", newRefreshToken, cookieOptions)
         .json(
-            new ApiResponse (200, {
-                accessToken,
-                refreshToken: newRefreshToken
-            } ,"New refresh token generated")
+            new ApiResponse(200, {}, "New refresh token generated")
         )
     } catch (error) {
         throw new ApiError(401 , error?.message || "Invalid refresh token")
@@ -242,7 +242,7 @@ const refreshAccessToken = asyncHandler(async ( req , res ) =>{
 const changePassword = asyncHandler(async ( req , res ) =>{
     // So for changing the password we must check is user log in or not and for that we will use our auth middleware which we wrote earlier
     
-    const {oldPassword , newPassword , cnfrmPassword} = req.body 
+    const {oldPassword , newPassword , cnfrmPassword} = req.body || {} 
 
     if(!(newPassword === cnfrmPassword)){
         throw new ApiError(400 ,"newPassword and cnfrmPassword is not same")
@@ -274,7 +274,7 @@ const changePassword = asyncHandler(async ( req , res ) =>{
 
 const updateAccountDetails = asyncHandler( async ( req , res ) => {
 
-    const {fullName , email} = req.body
+    const {fullName , email} = req.body || {}
 
     if(!fullName || !email){
         throw new ApiError(400 , "Fill all the given fields to update")

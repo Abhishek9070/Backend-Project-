@@ -1,50 +1,96 @@
-import {v2 as cloudinary} from "cloudinary"
+import { v2 as cloudinary } from "cloudinary"
 import fs from "fs"
+import { URL } from "url"
+
+const LARGE_UPLOAD_THRESHOLD_BYTES = 100 * 1024 * 1024
 
 
-    // Configuration
-    cloudinary.config({ 
-        cloud_name: process.env.CLOUDNARY_CLOUD_NAME, 
-        api_key: process.env.CLOUDNARY_CLOUD_API_KEY, 
-        api_secret: process.env.CLOUDNARY_CLOUD_API_SECRET
-    });
-    
-    const cloudinaryUpload= async (localFilePath)=>{
-        try{
-            if(!localFilePath) return null
-            console.log("Uploading file:", localFilePath)
-            const response = await cloudinary.uploader.upload(localFilePath,{
-                resource_type:"auto"
+// Configuration (env var names kept to match existing .env keys)
+cloudinary.config({
+    cloud_name: process.env.CLOUDNARY_CLOUD_NAME,
+    api_key: process.env.CLOUDNARY_CLOUD_API_KEY,
+    api_secret: process.env.CLOUDNARY_CLOUD_API_SECRET
+})
+
+const cloudinaryUpload = async (localFilePath, options = {}) => {
+    try {
+        if (!localFilePath) return null
+
+        const { resourceType = "auto" } = options
+        const fileStats = fs.existsSync(localFilePath) ? fs.statSync(localFilePath) : null
+        const fileSize = fileStats?.size || 0
+        const shouldUseLargeUpload = fileSize > LARGE_UPLOAD_THRESHOLD_BYTES && resourceType !== "image"
+
+        console.log("Uploading file:", localFilePath)
+        const response = shouldUseLargeUpload
+            ? await cloudinary.uploader.upload_large(localFilePath, {
+                resource_type: resourceType === "auto" ? "video" : resourceType,
+                chunk_size: 6 * 1024 * 1024
             })
-            console.log("Upload successful:", response.url)
-            fs.unlinkSync(localFilePath)
-            return response
-        }
-        catch(error){
-            console.log("Cloudinary upload error:", error.message)
-            // Only try to delete if file exists
-            if(localFilePath && fs.existsSync(localFilePath)){
-                fs.unlinkSync(localFilePath)
-            }
-            return null
-        }
-    }
+            : await cloudinary.uploader.upload(localFilePath, {
+                resource_type: resourceType
+            })
 
-    const cloudinaryDelete = async (imageUrl) => {
+        console.log("Upload successful:", response.secure_url || response.url)
+
         try {
-            if (!imageUrl) return null
-            // Extract public_id from URL: https://res.cloudinary.com/cloud/image/upload/v123/public_id.ext
-            const urlParts = imageUrl.split('/')
-            const fileWithExt = urlParts[urlParts.length - 1] // e.g., "public_id.jpg"
-            const publicId = fileWithExt.split('.')[0] // remove extension
-            
-            const result = await cloudinary.uploader.destroy(publicId)
-            console.log("Cloudinary delete result:", result)
-            return result
-        } catch (error) {
-            console.log("Cloudinary delete error:", error.message)
-            return null
+            if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath)
+        } catch (e) {
+            console.warn("Failed to remove local temp file:", e.message)
         }
-    }
 
-export {cloudinaryUpload, cloudinaryDelete}
+        return response
+    } catch (error) {
+        console.log("Cloudinary upload error:", error?.message || error)
+        // Only try to delete if file exists
+        try {
+            if (localFilePath && fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath)
+        } catch (e) {
+            console.warn("Failed to remove local temp file after error:", e.message)
+        }
+        // Throw the error so upstream handlers and logs receive the original message
+        throw new Error(error?.message || String(error))
+    }
+}
+
+const cloudinaryDelete = async (imageUrl) => {
+    try {
+        if (!imageUrl) return null
+
+        // Robustly extract public_id from a Cloudinary URL.
+        // Example URL: https://res.cloudinary.com/<cloud>/image/upload/v123/folder1/folder2/public_id.ext
+        let publicId = null
+        try {
+            const parsed = new URL(imageUrl)
+            const pathname = parsed.pathname || ""
+            const uploadIndex = pathname.indexOf("/upload/")
+            if (uploadIndex >= 0) {
+                // slice after /upload/
+                let remainder = pathname.slice(uploadIndex + "/upload/".length)
+                // remove version segment if present (/v123/)
+                remainder = remainder.replace(/^v\d+\//, "")
+                // remove leading / if any
+                if (remainder.startsWith("/")) remainder = remainder.slice(1)
+                // remove file extension
+                const lastDot = remainder.lastIndexOf('.')
+                publicId = lastDot > 0 ? remainder.slice(0, lastDot) : remainder
+            }
+        } catch (e) {
+            // Fallback: try a naive extraction
+            const parts = imageUrl.split("/")
+            const fileWithExt = parts[parts.length - 1] || ""
+            publicId = fileWithExt.split('.')[0]
+        }
+
+        if (!publicId) return null
+
+        const result = await cloudinary.uploader.destroy(publicId)
+        console.log("Cloudinary delete result:", result)
+        return result
+    } catch (error) {
+        console.log("Cloudinary delete error:", error?.message || error)
+        return null
+    }
+}
+
+export { cloudinaryUpload, cloudinaryDelete }

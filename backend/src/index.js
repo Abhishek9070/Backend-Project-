@@ -10,7 +10,7 @@ connectDB() // as DB connected and it is comming from async await so it will als
 .then(()=>{ 
     const port=process.env.PORT;
     app.listen(port , ()=>{  // listening our server 
-        console.log(`Your app is running on server: http://localhost:${port}`)
+        console.log(`Server is running on port: ${port}`)
     })
     app.on("error", (err) => { // it is an event listener that catches server-level errors from your Express app
       console.error("App error:", err);

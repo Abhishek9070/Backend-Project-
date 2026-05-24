@@ -1,6 +1,6 @@
 import ModalShell from "../common/ModalShell"
 
-function UploadModal({ busyUpload, isAuthed, onClose, onUploadSubmit, setUploadForm, uploadForm }) {
+function UploadModal({ busyUpload, isAuthed, onClose, onUploadSubmit, setUploadForm, uploadForm, uploadProgress, uploadStage }) {
   return (
     <ModalShell onClose={onClose}>
       <div className="panel-head">
@@ -51,6 +51,13 @@ function UploadModal({ busyUpload, isAuthed, onClose, onUploadSubmit, setUploadF
             }
           />
         </label>
+        {busyUpload ? (
+          <div className="stack" aria-live="polite">
+            <p className="loading-note">{uploadStage || "Uploading..."}</p>
+            <progress max="100" value={uploadProgress} />
+            <p className="loading-note">{uploadProgress}%</p>
+          </div>
+        ) : null}
         <button className="primary-btn" disabled={busyUpload || !isAuthed} type="submit">
           {busyUpload ? "Uploading..." : "Upload"}
         </button>

@@ -19,7 +19,8 @@ import { fetchChannelStats, fetchChannelVideos } from "../../api/dashboard"
 import { fetchLikedVideos, fetchMyPlaylists, fetchWatchHistory } from "../../api/library"
 import { toggleVideoDislikeReaction, toggleVideoLikeReaction } from "../../api/reactions"
 import { fetchSubscribedChannels, toggleSubscription } from "../../api/subscriptions"
-import { deleteVideoById, fetchVideoById, fetchVideos, fetchVideosByOwner, updateVideoById, uploadVideo } from "../../api/videos"
+import { deleteVideoById, fetchVideoById, fetchVideos, fetchVideosByOwner, saveVideoMetadata, updateVideoById } from "../../api/videos"
+import { uploadToCloudinary } from "../../api/cloudinary"
 
 const defaultRegister = {
   username: "",
@@ -99,6 +100,8 @@ export function useHomeController() {
   const [busyUpload, setBusyUpload] = useState(false)
   const [busyEdit, setBusyEdit] = useState(false)
   const [busySubscription, setBusySubscription] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStage, setUploadStage] = useState("")
   const [canGoWatchBack, setCanGoWatchBack] = useState(false)
   const [canGoWatchForward, setCanGoWatchForward] = useState(false)
 
@@ -835,20 +838,46 @@ export function useHomeController() {
     event.preventDefault()
     setBusyUpload(true)
     setStatus("")
+    setUploadProgress(0)
+    setUploadStage("")
 
     try {
       if (!isAuthed || !token) {
         throw new Error("Please sign in before uploading")
       }
 
-      const formData = new FormData()
-      formData.append("title", uploadForm.title)
-      formData.append("description", uploadForm.description)
+      if (!uploadForm.videoFile) {
+        throw new Error("Please select a video file")
+      }
 
-      if (uploadForm.videoFile) formData.append("videoFile", uploadForm.videoFile)
-      if (uploadForm.thumbnail) formData.append("thumbnail", uploadForm.thumbnail)
+      if (uploadForm.videoFile.size > 200 * 1024 * 1024) {
+        throw new Error("Video too large")
+      }
 
-      const response = await uploadVideo(formData, token)
+      setUploadStage("Uploading video to Cloudinary")
+      const videoResponse = await uploadToCloudinary(uploadForm.videoFile, (percent) => {
+        setUploadProgress(Math.min(percent, 100))
+      })
+
+      let thumbnailResponse = null
+
+      if (uploadForm.thumbnail) {
+        setUploadStage("Uploading thumbnail to Cloudinary")
+        setUploadProgress(0)
+        thumbnailResponse = await uploadToCloudinary(uploadForm.thumbnail, (percent) => {
+          setUploadProgress(Math.min(percent, 100))
+        })
+      }
+
+      setUploadStage("Saving video metadata")
+      const response = await saveVideoMetadata({
+        title: uploadForm.title,
+        description: uploadForm.description,
+        videoUrl: videoResponse?.secure_url,
+        thumbnailUrl: thumbnailResponse?.secure_url || videoResponse?.thumbnail_url || "",
+        duration: videoResponse?.duration || 0
+      }, token)
+
       setStatus(response?.message || "Video uploaded")
       setUploadForm(defaultUpload)
       setShowUploadModal(false)
@@ -859,8 +888,10 @@ export function useHomeController() {
       setStatus(error.message)
     } finally {
       setBusyUpload(false)
+      setUploadProgress(0)
+      setUploadStage("")
     }
-  }, [isAuthed, loadVideos, search, setAppActiveSection, setSectionTitle, token, uploadForm])
+  }, [isAuthed, loadVideos, saveVideoMetadata, search, setAppActiveSection, setSectionTitle, token, uploadForm])
 
   const onEditSubmit = useCallback(async (event) => {
     event.preventDefault()
@@ -1005,7 +1036,11 @@ export function useHomeController() {
     setShowEditModal(false)
   }, [])
 
-  const closeUploadModal = useCallback(() => setShowUploadModal(false), [])
+  const closeUploadModal = useCallback(() => {
+    setShowUploadModal(false)
+    setUploadProgress(0)
+    setUploadStage("")
+  }, [])
 
   const toggleAuthMode = useCallback(() => {
     setMode((prev) => (prev === "login" ? "register" : "login"))
@@ -1088,6 +1123,8 @@ export function useHomeController() {
     showEditModal,
     showUploadModal,
     status,
+    uploadProgress,
+    uploadStage,
     subscribedChannels,
     toggleAuthMode,
     uploadForm,

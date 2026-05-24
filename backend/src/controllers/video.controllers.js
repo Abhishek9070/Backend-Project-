@@ -71,56 +71,39 @@ const getAllVideos = asyncHandler(async (req, res) => {
     )
 })
 
-//1) Upload video 
+//1) Save uploaded media metadata
 
 const uploadVideo = asyncHandler(async (req , res) =>{
-    console.log("uploadVideo: received files", {
-        bodyKeys: Object.keys(req.body || {}),
-        fileKeys: Object.keys(req.files || {}),
-        videoFile: req.files?.videoFile?.[0]?.path || null,
-        thumbnail: req.files?.thumbnail?.[0]?.path || null
-    })
+    const {
+        description,
+        title,
+        videoUrl,
+        thumbnailUrl,
+        duration = 0
+    } = req.body
 
-    // Get all meta data related video
-    const {description , title } = req.body
     if (!title?.trim() || !description?.trim()) {
-    throw new ApiError(400, "Title and description are required")
+        throw new ApiError(400, "Title and description are required")
     }
 
-    // Finding the local path of the video
-    const videoPath = req.files?.videoFile?.[0]?.path
-    const thumbnailPath = req.files?.thumbnail?.[0]?.path
+    const resolvedVideoUrl = videoUrl || req.body.videoFile
+    const resolvedThumbnailUrl = thumbnailUrl || req.body.thumbnail || ""
 
-    //Checking if its uploaded or not 
-    if(!videoPath){
-        throw new ApiError (400 , "Sry no video found please upload it again")
+    if (!resolvedVideoUrl || !resolvedThumbnailUrl) {
+        throw new ApiError(400, "Missing URLs")
     }
 
-    const video = await cloudinaryUpload(videoPath, { resourceType: "video" })
-    const thumbnail = await cloudinaryUpload(thumbnailPath, { resourceType: "image" })
-
-    console.log("uploadVideo: cloudinary result", {
-        videoUrl: video?.url || null,
-        thumbnailUrl: thumbnail?.url || null,
-        videoError: video?.error || null,
-        thumbnailError: thumbnail?.error || null
-    })
-
-    if(!video?.url){
-        throw new ApiError(500,"Video upload failed")
-    }
-
-    const videoData = await  Video.create({
+    const videoData = await Video.create({
         title,
         description,
-        videoFile: video.url,
-        thumbnail: thumbnail?.url || "",
-        duration: video.duration || 0,
+        videoFile: resolvedVideoUrl,
+        thumbnail: resolvedThumbnailUrl,
+        duration: Number(duration) || 0,
         owner: req.user._id
     })
 
     return res.status(201).json(
-            new ApiResponse(201 ,videoData , "Video uploaded successfully")
+        new ApiResponse(201, videoData, "Video uploaded successfully")
     )
 
 })

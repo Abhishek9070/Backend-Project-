@@ -18,13 +18,14 @@ export const fetchVideosByOwner = (ownerId, query = "") => {
   return apiRequest(`/videos${queryString ? `?${queryString}` : ""}`)
 }
 
-export const uploadVideo = (formData, token) =>
-  apiRequest("/videos/upload-video", {
+export const saveVideoMetadata = (payload, token) =>
+  apiRequest("/videos/save", {
     method: "POST",
-    body: formData,
-    token,
-    isFormData: true
+    body: payload,
+    token
   })
+
+export const uploadVideo = (payload, token) => saveVideoMetadata(payload, token)
 
 export const deleteVideoById = (videoId, token) =>
   apiRequest(`/videos/delete/${videoId}`, {

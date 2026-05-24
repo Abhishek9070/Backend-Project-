@@ -14,20 +14,8 @@ const router = Router()
 
 router.route("/").get(getAllVideos)
 
-router.route("/upload-video").post(
-    verifyJWT,
-    upload.fields([
-        {
-            name: "videoFile",
-            maxCount: 1,
-        },
-        {
-            name: "thumbnail",
-            maxCount: 1,
-        }
-    ]),
-    uploadVideo
-)
+router.route("/save").post(verifyJWT, uploadVideo)
+router.route("/upload-video").post(verifyJWT, uploadVideo)
 
 router.route("/watch/:videoId").get(optionalVerifyJWT, getVideoByID)
 router.patch(

@@ -75,6 +75,8 @@ function App() {
     showEditModal,
     showUploadModal,
     status,
+    uploadProgress,
+    uploadStage,
     subscribedChannels,
     toggleAuthMode,
     user,
@@ -187,6 +189,8 @@ function App() {
           onUploadSubmit={onUploadSubmit}
           setUploadForm={setUploadForm}
           uploadForm={uploadForm}
+          uploadProgress={uploadProgress}
+          uploadStage={uploadStage}
         />
       ) : null}
 

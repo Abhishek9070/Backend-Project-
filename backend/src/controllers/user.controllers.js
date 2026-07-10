@@ -43,6 +43,8 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 
     // 1) Taking data from frontend 
     const { username , fullName , email , password } = req.body || {}
+    const normalizedUsername = username?.trim().toLowerCase()
+    const normalizedEmail = email?.trim().toLowerCase()
     console.log(`email:${email}`);
     
     // 2) validation userData 
@@ -55,8 +57,8 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     // M2 : using array .some() method -> which returns true and false , we will insert all data in an array and run check for each data all together 
     // In real project there is a seperate file for this validation we just import and use as there can be as many validation checks 
     
-    if( [username, fullName, email, password].some(
-        (field)=> !field || field?.trim()==="") // if this is empty then it will return true
+    if( [normalizedUsername, fullName, normalizedEmail, password].some(
+        (field)=> !field || field?.trim()==="")
     ){
         throw new ApiError(400 , "All fields are required") // throwing error using apierror 
     }
@@ -65,7 +67,7 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     // So on that user we run a preDefined method .findOne which returns the first existance of the user
     
     const existingUser= await User.findOne({
-        $or:[{email},{username}] // here as we want to check from both if either of them exists you cant register , so by using ($) we can basically use or and xor and many other function , all inside an array of objects
+        $or:[{email: normalizedEmail},{username: normalizedUsername}]
     })
 
     if( existingUser ){ // as we store it in a var then here with help of it we can check 
@@ -105,8 +107,8 @@ const registerUsers = asyncHandler( async ( req , res ) => {
     // 6) Entering user data in our database 
     const user = await User.create({
         fullName,
-        username:username.toLowerCase(), // we want that all username should be in lowecase in my db
-        email,
+        username: normalizedUsername,
+        email: normalizedEmail,
         password,
         avatar: avatar.url, // here we just want avatar url not other metadata about it 
         coverImage: coverImg?.url || "" // cover image is optional
@@ -136,12 +138,14 @@ const registerUsers = asyncHandler( async ( req , res ) => {
 const loginUsers = asyncHandler ( async ( req, res ) => {
     // bring given username , email , password from frontend  (req->body)
     const {username , email , password}=req.body || {}
-    if( !(username || email) ){
+    const normalizedUsername = username?.trim().toLowerCase()
+    const normalizedEmail = email?.trim().toLowerCase()
+    if( !(normalizedUsername || normalizedEmail) ){
         throw new ApiError(400 ,"Please enter username or email")
     }
     //username or email validate 
     const userDetails = await User.findOne({
-        $or:[{username} , {email}]
+        $or:[{username: normalizedUsername} , {email: normalizedEmail}]
     }).select("+password")
     //check if user is registered or not 
     if(!userDetails){
@@ -161,7 +165,7 @@ const loginUsers = asyncHandler ( async ( req, res ) => {
     const logInUser = await User.findById(userDetails._id).
     select("-password -refreshToken") // here basically we are removing the things which we dont want to send
     
-    // send tokens as secure httpOnly cookies only; do not include tokens in JSON response
+    // send tokens as secure httpOnly cookies AND include accessToken in JSON response for frontend
     return res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
@@ -169,7 +173,7 @@ const loginUsers = asyncHandler ( async ( req, res ) => {
     .json(
         new ApiResponse(
             200,
-            { userDetails: logInUser },
+            { accessToken, userDetails: logInUser },
             "User logged in successfully"
         )
     )

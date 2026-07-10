@@ -31,7 +31,7 @@ export async function apiRequest(path, options = {}) {
   const {
     method = "GET",
     body,
-    token,
+    token: explicitToken,
     headers = {},
     isFormData = false
   } = options
@@ -40,6 +40,8 @@ export async function apiRequest(path, options = {}) {
     ...headers
   }
 
+  // Use explicit token if provided, otherwise use token from localStorage
+  const token = explicitToken || authStorage.getToken()
   if (token) {
     requestHeaders.Authorization = `Bearer ${token}`
   }

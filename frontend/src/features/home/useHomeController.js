@@ -284,9 +284,9 @@ export function useHomeController() {
 
     try {
       const payload = new FormData()
-      payload.append("username", registerForm.username)
-      payload.append("fullName", registerForm.fullName)
-      payload.append("email", registerForm.email)
+      payload.append("username", registerForm.username.trim().toLowerCase())
+      payload.append("fullName", registerForm.fullName.trim())
+      payload.append("email", registerForm.email.trim().toLowerCase())
       payload.append("password", registerForm.password)
 
       if (registerForm.avatar) payload.append("avatar", registerForm.avatar)
@@ -313,19 +313,21 @@ export function useHomeController() {
         password: loginForm.password
       }
 
-      if (loginForm.username.trim()) body.username = loginForm.username.trim()
-      if (loginForm.email.trim()) body.email = loginForm.email.trim()
+      if (loginForm.username.trim()) body.username = loginForm.username.trim().toLowerCase()
+      if (loginForm.email.trim()) body.email = loginForm.email.trim().toLowerCase()
 
       const response = await loginUser(body)
+      const accessToken = response?.data?.accessToken
       const userDetails = response?.data?.userDetails
 
-      if (!userDetails) {
-        throw new Error("Login succeeded but user data is missing")
+      if (!userDetails || !accessToken) {
+        throw new Error("Login succeeded but data is missing (token or user)")
       }
 
-      // Rely on httpOnly cookies for authentication; store only non-sensitive user details client-side
+      // Store token in localStorage and Redux for authenticated API calls
+      authStorage.setToken(accessToken)
       authStorage.setUser(userDetails)
-      dispatch(setSession({ token: "", user: userDetails }))
+      dispatch(setSession({ token: accessToken, user: userDetails }))
       setStatus("Logged in successfully")
       setLoginForm(defaultLogin)
       setShowAuthModal(false)

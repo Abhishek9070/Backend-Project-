@@ -7,9 +7,9 @@ const LARGE_UPLOAD_THRESHOLD_BYTES = 100 * 1024 * 1024
 
 // Configuration (env var names kept to match existing .env keys)
 cloudinary.config({
-    cloud_name: process.env.CLOUDNARY_CLOUD_NAME,
-    api_key: process.env.CLOUDNARY_CLOUD_API_KEY,
-    api_secret: process.env.CLOUDNARY_CLOUD_API_SECRET
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_CLOUD_API_KEY,
+    api_secret: process.env.CLOUDINARY_CLOUD_API_SECRET
 })
 
 const cloudinaryUpload = async (localFilePath, options = {}) => {
